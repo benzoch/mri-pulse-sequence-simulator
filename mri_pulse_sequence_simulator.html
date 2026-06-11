@@ -1,0 +1,1407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MRI Pulse Sequence Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000000;
+            color: #e0e6ff;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        :root {
+            --bg-color: #0b1120;
+            --panel-bg: #111827;
+            --accent-blue: #3b82f6;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --border: #1e293b;
+        }
+
+        body {
+            background: var(--bg-color);
+            color: var(--text-dim);
+            overflow-x: hidden;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            min-height: 100vh;
+            gap: 12px;
+            padding: 12px;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            position: sticky;
+            top: 20px;
+            height: fit-content;
+        }
+
+        .nav-item {
+            padding: 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: 0.3s ease;
+            background: #0f172a;
+            border: 1px solid var(--border);
+        }
+
+        .nav-item:hover {
+            background: #1e293b;
+            color: white;
+        }
+
+        .nav-item.active {
+            background: var(--accent-blue);
+            color: white;
+            box-shadow: 0 0 15px rgba(59,130,246,0.4);
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            position: sticky;
+            top: 20px;
+            height: fit-content;
+        }
+
+        .stat-box {
+            background: #0f172a;
+            padding: 10px;
+            border-radius: 10px;
+            border-left: 4px solid var(--accent-blue);
+        }
+
+        @media (max-width: 1000px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar,
+            .control-panel {
+                position: relative;
+                top: 0;
+            }
+        }
+
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            animation: slideDown 0.8s ease-out;
+        }
+
+        h1 {
+            font-size: 1.8em;
+            margin-bottom: 10px;
+            color: #FFD700;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+
+        .subtitle {
+            color: #9db4ff;
+            font-size: 0.82em;
+            letter-spacing: 1px;
+        }
+
+        .sequence-selector {
+            background: #1a1a2e;
+            border: 2px solid #1e90ff;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 30px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .sequence-selector label {
+            color: #FFD700;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.78em;
+            letter-spacing: 1px;
+        }
+
+        select {
+            padding: 10px 15px;
+            background: #0a0e27;
+            border: 2px solid #1e90ff;
+            color: #FFD700;
+            border-radius: 4px;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 0.82em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 300px;
+        }
+
+        select:hover {
+            border-color: #FFD700;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #FF6347;
+            box-shadow: 0 0 15px rgba(255, 99, 71, 0.5);
+        }
+
+        option {
+            background: #0a0e27;
+            color: #FFD700;
+            padding: 10px;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin-bottom: 40px;
+        }
+
+        .panel {
+            background: #1a1a2e;
+            border: 2px solid #1e90ff;
+            border-radius: 8px;
+            padding: 16px;
+            animation: fadeIn 1s ease-out;
+        }
+
+        .panel h2 {
+            font-size: 0.82em;
+            color: #FFD700;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 2px solid #1e90ff;
+            padding-bottom: 10px;
+        }
+
+        .sequence-info {
+            background: #0a0e27;
+            border: 2px solid #1e90ff;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 0.78em;
+            line-height: 1.6;
+        }
+
+        .sequence-info strong {
+            color: #FFD700;
+        }
+
+        .sequence-info a {
+            color: #1e90ff;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .sequence-info a:hover {
+            color: #FFD700;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        .image-display {
+            width: 100%;
+            height: 320px;
+            background: #0a0e27;
+            border: 2px solid #1e90ff;
+            position: relative;
+            overflow: hidden;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .canvas-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            display: block;
+            border-radius: 2px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat {
+            background: #0a0e27;
+            border: 2px solid #1e90ff;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .stat-label {
+            color: #9db4ff;
+            font-size: 0.8em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            color: #FFD700;
+            font-size: 1em;
+            font-weight: bold;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        button {
+            background: #1e90ff;
+            border: none;
+            color: #ffffff;
+            padding: 8px 14px;
+            font-size: 0.82em;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button:hover {
+            background: #FFD700;
+            color: #000000;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(255, 215, 0, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #666;
+        }
+
+        .arrow-button {
+            padding: 7px 10px;
+            font-size: 0.82em;
+            min-width: auto;
+            background: #FF6347;
+        }
+
+        .arrow-button:hover {
+            background: #FF4500;
+            color: #FFD700;
+        }
+
+        .step-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background: #0a0e27;
+            padding: 10px;
+            border-radius: 4px;
+            border: 2px solid #1e90ff;
+        }
+
+        .step-info {
+            color: #9db4ff;
+            font-size: 0.78em;
+            margin-left: auto;
+            min-width: 300px;
+            text-align: right;
+        }
+
+        .speed-control {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: #0a0e27;
+            padding: 10px;
+            border-radius: 4px;
+            border: 2px solid #1e90ff;
+        }
+
+        .speed-control label {
+            color: #FFD700;
+            text-transform: uppercase;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+
+        .speed-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .speed-btn {
+            padding: 8px 16px;
+            font-size: 0.85em;
+            background: #1a1a2e;
+            border: 2px solid #1e90ff;
+            color: #FFD700;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        .speed-btn:hover {
+            background: #1e90ff;
+            color: #FFD700;
+        }
+
+        .speed-btn.active {
+            background: #FFD700;
+            color: #000000;
+            border-color: #FFD700;
+        }
+
+        .pulse-diagram {
+            background: #0a0e27;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 20px 0;
+            border: 2px solid #1e90ff;
+            font-size: 0.85em;
+            line-height: 1.8;
+            max-height: 280px;
+            overflow-y: auto;
+        }
+
+        .pulse-line {
+            margin: 12px 0;
+            font-family: 'Segoe UI', sans-serif;
+            color: #9db4ff;
+            position: relative;
+            padding-left: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .pulse-line.active {
+            color: #FFD700;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+            background: rgba(255, 215, 0, 0.1);
+            padding: 8px;
+            border-radius: 4px;
+            transform: translateX(5px);
+            border-left: 3px solid #FF6347;
+        }
+
+        .pulse-line::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            opacity: 0;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .pulse-line.active::before {
+            opacity: 1;
+            color: #FF6347;
+        }
+
+        .timeline {
+            margin-top: 30px;
+            padding: 12px;
+            background: #0a0e27;
+            border: 2px solid #1e90ff;
+            border-radius: 4px;
+        }
+
+        .timeline-bar {
+            width: 100%;
+            height: 40px;
+            background: linear-gradient(90deg, rgba(30, 144, 255, 0.1) 0%, rgba(255, 99, 71, 0.1) 100%);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 15px 0;
+            position: relative;
+            border: 2px solid #1e90ff;
+        }
+
+        .timeline-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #1e90ff, #FFD700);
+            width: 0%;
+            transition: width 0.1s linear;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 10px;
+            color: #000000;
+            font-weight: bold;
+            font-size: 0.8em;
+        }
+
+        .description {
+            color: #9db4ff;
+            font-size: 0.78em;
+            line-height: 1.8;
+            margin-top: 20px;
+        }
+
+        .pulseq-link {
+            color: #1e90ff;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .pulseq-link:hover {
+            color: #FFD700;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 0;
+                transform: translateX(0);
+            }
+            50% {
+                opacity: 1;
+                transform: translateX(5px);
+            }
+        }
+
+        @media (max-width: 1400px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .step-info {
+                min-width: 200px;
+            }
+        }
+
+        footer {
+            text-align: center;
+            color: #6a76aa;
+            font-size: 0.85em;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 2px solid #1e90ff;
+        }
+
+        /* Scrollbar styling */
+        .pulse-diagram::-webkit-scrollbar,
+        .sequence-info::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .pulse-diagram::-webkit-scrollbar-track,
+        .sequence-info::-webkit-scrollbar-track {
+            background: #0a0e27;
+        }
+
+        .pulse-diagram::-webkit-scrollbar-thumb,
+        .sequence-info::-webkit-scrollbar-thumb {
+            background: #1e90ff;
+            border-radius: 4px;
+        }
+
+        .pulse-diagram::-webkit-scrollbar-thumb:hover,
+        .sequence-info::-webkit-scrollbar-thumb:hover {
+            background: #FFD700;
+        }
+    </style>
+</head>
+<body>
+    
+<div class="dashboard-grid">
+    <div class="main-content">
+        <div class="container">
+
+        <header>
+            <h1>🧲 MRI PULSE SEQUENCE SIMULATOR</h1>
+            <p class="subtitle">Brain Phantom Visualization with Real-Time K-Space Reconstruction</p>
+        </header>
+
+        <div class="sequence-selector">
+            <label for="sequenceSelect">SELECT SEQUENCE:</label>
+            <select id="sequenceSelect" onchange="changeSequence()">
+                <option value="gradient_echo">Gradient Echo Sequence</option>
+                <option value="gradient_echo_3d">3D Gradient Echo Sequence</option>
+                <option value="epi">EPI Sequence</option>
+                <option value="epi_ramp">EPI Sequence with Ramp Sampling</option>
+                <option value="se_epi">SE-EPI Sequence</option>
+                <option value="haste">HASTE Sequence</option>
+                <option value="radial">Radial Gradient Echo Sequence</option>
+                <option value="selective_rf">Create a 2D Selective RF Pulse</option>
+                <option value="spiral">Spiral Sequence</option>
+                <option value="trufi">Trufi Sequence</option>
+                <option value="tse">Turbo Spin Echo Sequence</option>
+                <option value="ute">UTE Sequence</option>
+                <option value="ute_ramp">UTE Sequence with Ramp Sampling</option>
+            </select>
+        </div>
+
+        <div class="controls">
+            <button id="playBtn" onclick="togglePlay()">▶ PLAY</button>
+            <button id="resetBtn" onclick="reset()">↻ RESET</button>
+            <button id="downloadBtn" onclick="downloadVideo()">⬇ EXPORT</button>
+            
+            <div class="speed-control">
+                <label>SPEED:</label>
+                <div class="speed-buttons">
+                    <button class="speed-btn" onclick="setSpeed(0.25)">0.25x</button>
+                    <button class="speed-btn" onclick="setSpeed(0.5)">0.5x</button>
+                    <button class="speed-btn active" onclick="setSpeed(1)">1x</button>
+                    <button class="speed-btn" onclick="setSpeed(2)">2x</button>
+                    <button class="speed-btn" onclick="setSpeed(3)">3x</button>
+                    <button class="speed-btn" onclick="setSpeed(4)">4x</button>
+                    <button class="speed-btn" onclick="setSpeed(5)">5x</button>
+                    <button class="speed-btn" onclick="setSpeed(10)">10x</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-grid">
+            <div class="panel">
+                <h2>SEQUENCE INFORMATION</h2>
+                <div class="sequence-info" id="sequenceInfo"></div>
+                <div class="description" id="sequenceDescription"></div>
+            </div>
+
+            <div class="panel">
+                <h2>MRI IMAGE ACQUISITION</h2>
+                <div class="image-display">
+                    <div class="canvas-container">
+                        <canvas id="imageCanvas"></canvas>
+                    </div>
+                </div>
+                <div class="stats">
+                    <div class="stat">
+                        <div class="stat-label">PHASE ENCODE</div>
+                        <div class="stat-value" id="rowCounter">0/256</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">PROGRESS</div>
+                        <div class="stat-value" id="progressPercent">0%</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">TIME ELAPSED</div>
+                        <div class="stat-value" id="timeCounter">0.0s</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">ESTIMATED SNR</div>
+                        <div class="stat-value" id="snrCounter">0 dB</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>PULSE SEQUENCE TIMELINE</h2>
+            
+            <div class="step-controls">
+                <button class="arrow-button" onclick="previousStep()">◀</button>
+                <div class="step-info" id="stepInfo">Ready to start scanning...</div>
+                <button class="arrow-button" onclick="nextStep()">▶</button>
+            </div>
+
+            <div class="pulse-diagram" id="pulseDiagram"></div>
+
+            <div class="timeline">
+                <div style="color: #FFD700; font-size: 0.78em; margin-bottom: 10px; font-weight: bold;">OVERALL ACQUISITION PROGRESS</div>
+                <div class="timeline-bar">
+                    <div class="timeline-progress" id="timelineProgress">0%</div>
+                </div>
+                <div class="description" id="eventDescription">Waiting to initialize sequence...</div>
+            </div>
+        </div>
+
+        <!-- <div class="panel" style="margin-top: 20px;">
+            <h2>HOW THIS WORKS</h2>
+            <div class="description" id="sequenceDescription"></div>
+        </div> -->
+
+        <div class="panel" style="margin-top: 20px;">
+            <h2>REFERENCES</h2>
+            <p style="color: #9db4ff; margin: 10px 0;">               
+                This simulator is updated in real-time as the pulse sequence progresses - based on open-source pulse sequences from the 
+                <a href="https://pulseq.github.io/" class="pulseq-link" target="_blank">Pulseq Project</a>.
+                For detailed code examples and specifications, visit the official documentation.
+            </p>
+        </div>
+    </div>
+
+        <footer>
+            <p>MRI Pulse Sequence Simulator • Advanced Medical Imaging Visualization</p>
+        </footer>
+        </div>
+
+        <div class="panel control-panel">
+            <h2>ACTIVE SEQUENCE</h2>
+
+            <div class="stat-box">
+                <div class="stat-label">SEQUENCE NAME</div>
+                <div class="stat-value" id="activeSequenceLabel">Gradient Echo</div>
+            </div>
+
+            <div class="stat-box">
+                <div class="stat-label">PROGRESS</div>
+                <div class="stat-value" id="progressMirror">0%</div>
+            </div>
+
+            <div class="stat-box">
+                <div class="stat-label">TIME ELAPSED</div>
+                <div class="stat-value" id="timeMirror">0.0s</div>
+            </div>
+
+            <div class="stat-box">
+                <div class="stat-label">CURRENT EVENT</div>
+                <div class="stat-value" id="eventMirror">Ready</div>
+            </div>
+
+            <!-- <button onclick="togglePlay()">▶ PLAY / PAUSE</button>
+            <button onclick="reset()">↻ RESET</button>
+            <button onclick="downloadVideo()">⬇ EXPORT</button> -->
+
+            <div class="sequence-info">
+                <strong>Estimated SNR(dB)</strong><br>= 20 · log₁₀(acq_fraction) + 10 · log₁₀(seq_gain)<br>
+                <strong>Where:</strong><br> acq_fraction is current_row / total_rows (0 to 1) and seq_gain is physics-based multiplier for that sequence.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // BRAIN PHANTOM GENERATOR
+        // ============================================
+        function generateBrainPhantom(width, height) {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            
+            // Clear background (CSF - dark)
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Draw brain tissue (white matter - lighter gray)
+            ctx.fillStyle = '#555555';
+            ctx.beginPath();
+            ctx.ellipse(width/2, height/2, width/2.2, height/2.4, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw gray matter (slightly lighter)
+            ctx.fillStyle = '#707070';
+            ctx.beginPath();
+            ctx.ellipse(width/2, height/2, width/2.5, height/2.7, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw tumor (bright white/red circular lesion)
+            const tumorX = width * 0.65;
+            const tumorY = height * 0.45;
+            const tumorRadius = 20;
+            
+            // Tumor core (brightest)
+            ctx.fillStyle = '#FFFF00';
+            ctx.beginPath();
+            ctx.arc(tumorX, tumorY, tumorRadius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Tumor edema (halo effect)
+            ctx.fillStyle = '#CCCCCC';
+            ctx.beginPath();
+            ctx.arc(tumorX, tumorY, tumorRadius * 1.4, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Add some anatomical features (ventricles)
+            ctx.fillStyle = '#0a0a0a';
+            ctx.beginPath();
+            ctx.arc(width/2 - 15, height/2 - 20, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(width/2 + 15, height/2 - 20, 8, 0, Math.PI * 2);
+            ctx.fill();
+            
+            return canvas;
+        }
+
+        // ============================================
+        // K-SPACE SIMULATION
+        // ============================================
+        function applyFFT(realArray, imagArray) {
+            const N = realArray.length;
+            if (N <= 1) return;
+            
+            // Simple 1D FFT (radix-2)
+            for (let s = 1; s <= Math.log2(N); s++) {
+                const m = Math.pow(2, s);
+                const m2 = m / 2;
+                const w = -2 * Math.PI / m;
+                
+                for (let k = 0; k < N; k += m) {
+                    for (let j = 0; j < m2; j++) {
+                        const angle = w * j;
+                        const cos = Math.cos(angle);
+                        const sin = Math.sin(angle);
+                        const t = k + j + m2;
+                        
+                        const tReal = realArray[t] * cos - imagArray[t] * sin;
+                        const tImag = realArray[t] * sin + imagArray[t] * cos;
+                        
+                        realArray[t] = realArray[k + j] - tReal;
+                        imagArray[t] = imagArray[k + j] - tImag;
+                        
+                        realArray[k + j] = realArray[k + j] + tReal;
+                        imagArray[k + j] = imagArray[k + j] + tImag;
+                    }
+                }
+            }
+        }
+
+        // ============================================
+        // SEQUENCE DEFINITIONS
+        // ============================================
+        const sequences = {
+            gradient_echo: {
+                name: 'Gradient Echo',
+                tr: 12,
+                te: 5,
+                flipAngle: 10,
+                artifact: 'none',
+                snrGain: 1.0,
+                events: [
+                    { name: 'RF Pulse', emoji: '🔴', desc: 'Transmit 10° RF pulse with slice selection gradient' },
+                    { name: 'Gradient Prep', emoji: '🟡', desc: 'Apply x, y, z gradients for frequency/phase encoding' },
+                    { name: 'Wait to TE', emoji: '🟠', desc: 'Delay 5ms for echo refocusing (TE = 5ms)' },
+                    { name: 'Read-Out', emoji: '🟢', desc: 'Apply read gradient and collect 256 frequency-encoded pixels' },
+                    { name: 'Spoiling', emoji: '🔵', desc: 'Apply strong gradients to destroy magnetization' },
+                    { name: 'Delay to TR', emoji: '🟣', desc: 'Wait until TR (12ms total)' }
+                ],
+                description: '<strong>Gradient Echo (GRE):</strong> Basic 2D sequence where each TR acquires one phase-encode line. Fast acquisition with minimal T2 weighting. Each row built sequentially, resulting in clean images with minimal artifacts.',
+                rows: 256
+            },
+            gradient_echo_3d: {
+                name: '3D Gradient Echo',
+                tr: 15,
+                te: 6,
+                flipAngle: 8,
+                artifact: 'none',
+                snrGain: 1.4,
+                events: [
+                    { name: 'RF Pulse', emoji: '🔴', desc: 'Volume-selective RF pulse (no slice gradient)' },
+                    { name: 'Gradient Prep', emoji: '🟡', desc: 'Phase encoding in both y and z dimensions' },
+                    { name: 'Wait to TE', emoji: '🟠', desc: 'Delay for echo formation' },
+                    { name: 'Read-Out', emoji: '🟢', desc: 'Readout gradient in x direction' },
+                    { name: 'Spoiling', emoji: '🔵', desc: 'Destroy residual magnetization' },
+                    { name: 'Delay to TR', emoji: '🟣', desc: 'Wait for full recovery' }
+                ],
+                description: '<strong>3D Gradient Echo:</strong> Acquires entire 3D volume with phase encoding in two directions. Better SNR but longer acquisition time. Useful for volumetric imaging with improved contrast.',
+                rows: 256
+            },
+            epi: {
+                name: 'EPI',
+                tr: 2000,
+                te: 30,
+                flipAngle: 90,
+                artifact: 'ghosting',
+                snrGain: 0.8,
+                events: [
+                    { name: 'RF Pulse', emoji: '🔴', desc: '90° excitation pulse' },
+                    { name: 'Gradient Prep', emoji: '🟡', desc: 'Prepare for first k-space line' },
+                    { name: 'Phase Encode', emoji: '🟠', desc: 'First phase encoding step' },
+                    { name: 'Read Blips', emoji: '🟢', desc: 'Rapid readout with phase blips (zigzag k-space)' },
+                    { name: 'Echo Refocus', emoji: '🔵', desc: 'Multiple echoes from single excitation' },
+                    { name: 'End Sequence', emoji: '🟣', desc: 'Complete all echoes in one TR' }
+                ],
+                description: '<strong>EPI (Echo Planar Imaging):</strong> Ultra-fast sequence that fills entire k-space from single excitation. Uses rapid phase-encode blips with readout reversals. Critical for fMRI and diffusion imaging. May show slight ghosting artifacts.',
+                rows: 256
+            },
+            epi_ramp: {
+                name: 'EPI with Ramp Sampling',
+                tr: 2000,
+                te: 28,
+                flipAngle: 90,
+                artifact: 'minimal',
+                snrGain: 0.9,
+                events: [
+                    { name: 'RF Pulse', emoji: '🔴', desc: '90° excitation pulse' },
+                    { name: 'Ramp Sampling', emoji: '🟡', desc: 'Start data collection during gradient ramp' },
+                    { name: 'Optimized Timing', emoji: '🟠', desc: 'Reduces readout time by collecting data on ramps' },
+                    { name: 'Blipped Phase', emoji: '🟢', desc: 'Phase blips during readout gradient ramps' },
+                    { name: 'Echo Refocus', emoji: '🔵', desc: 'Multiple echoes with improved timing' },
+                    { name: 'End Sequence', emoji: '🟣', desc: 'Complete faster than standard EPI' }
+                ],
+                description: '<strong>EPI with Ramp Sampling:</strong> Advanced EPI variant that collects data during gradient ramps instead of waiting for flat-top. Reduces TE and increases SNR compared to standard EPI.',
+                rows: 256
+            },
+            se_epi: {
+                name: 'SE-EPI',
+                tr: 3000,
+                te: 40,
+                flipAngle: 90,
+                artifact: 'minimal',
+                snrGain: 1.1,
+                events: [
+                    { name: '90° Pulse', emoji: '🔴', desc: 'Initial 90° excitation' },
+                    { name: 'Gradient Prep', emoji: '🟡', desc: 'Prepare for phase encoding' },
+                    { name: 'Wait to Refocus', emoji: '🟠', desc: 'Delay for 180° pulse' },
+                    { name: '180° Pulse', emoji: '🟢', desc: 'Spin echo refocusing pulse' },
+                    { name: 'Read EPI', emoji: '🔵', desc: 'Rapid EPI readout with multiple echoes' },
+                    { name: 'Delay to TR', emoji: '🟣', desc: 'Full relaxation' }
+                ],
+                description: '<strong>SE-EPI (Spin Echo EPI):</strong> Combines spin echo with EPI for T2-weighted imaging. Better tissue contrast than gradient echo EPI but longer minimum TE. Good balance of speed and image quality.',
+                rows: 256
+            },
+            haste: {
+                name: 'HASTE',
+                tr: 4000,
+                te: 90,
+                flipAngle: 90,
+                artifact: 'blurring',
+                snrGain: 1.2,
+                events: [
+                    { name: '90° Pulse', emoji: '🔴', desc: 'Initial excitation' },
+                    { name: 'Turbo Sequence', emoji: '🟡', desc: 'Multiple 180° pulses in single shot' },
+                    { name: 'Rapid Echoes', emoji: '🟠', desc: 'Acquire multiple phase lines per TR' },
+                    { name: 'Phase Blips', emoji: '🟢', desc: 'Alternate phase blips between echoes' },
+                    { name: 'Signal Decay', emoji: '🔵', desc: 'T2 decay affects later echoes' },
+                    { name: 'End TR', emoji: '🟣', desc: 'Complete image in minimal time' }
+                ],
+                description: '<strong>HASTE (Half Fourier Acquisition Single-shot Turbo spin Echo):</strong> Single-shot TSE with half-Fourier acceleration. Produces T2-weighted images very rapidly. Excellent for clinical scanning but may show slight edge blurring.',
+                rows: 256
+            },
+            radial: {
+                name: 'Radial Gradient Echo',
+                tr: 8,
+                te: 4,
+                flipAngle: 12,
+                artifact: 'streaking',
+                snrGain: 0.9,
+                events: [
+                    { name: 'RF Pulse', emoji: '🔴', desc: 'Low flip angle excitation' },
+                    { name: 'Radial Projection', emoji: '🟡', desc: 'Set up radial direction in k-space' },
+                    { name: 'Radial Encoding', emoji: '🟠', desc: 'Acquire projection along radial direction' },
+                    { name: 'Read-Out', emoji: '🟢', desc: 'Collect frequency domain data' },
+                    { name: 'Spoiling', emoji: '🔵', desc: 'Destroy residual magnetization' },
+                    { name: 'Next Projection', emoji: '🟣', desc: 'Rotate to next projection angle' }
+                ],
+                description: '<strong>Radial Gradient Echo:</strong> Acquires k-space as radial projections instead of Cartesian lines. Robust to motion and flow artifacts but requires special reconstruction (gridding). May show radial streaking artifacts.',
+                rows: 256
+            },
+            selective_rf: {
+                name: '2D Selective RF',
+                tr: 100,
+                te: 50,
+                flipAngle: 90,
+                artifact: 'none',
+                snrGain: 1.1,
+                events: [
+                    { name: 'RF Pulse Design', emoji: '🔴', desc: 'Create 2D spatially selective pulse' },
+                    { name: 'X Gradient', emoji: '🟡', desc: 'Apply gradient in x direction' },
+                    { name: 'Y Gradient', emoji: '🟠', desc: 'Apply gradient in y direction' },
+                    { name: 'RF Modulation', emoji: '🟢', desc: 'Modulate RF frequency during pulses' },
+                    { name: 'Simultaneous Gradients', emoji: '🔵', desc: 'Both x and y gradients active' },
+                    { name: 'Echo Collection', emoji: '🟣', desc: 'Receive signal from excited region' }
+                ],
+                description: '<strong>2D Selective RF Pulse:</strong> Advanced pulse design that selectively excites a 2D region using simultaneous x and y gradients. Useful for localized spectroscopy and imaging. Provides excellent spatial selectivity.',
+                rows: 256
+            },
+            spiral: {
+                name: 'Spiral Sequence',
+                tr: 25,
+                te: 10,
+                flipAngle: 15,
+                artifact: 'blurring',
+                snrGain: 0.95,
+                events: [
+                    { name: 'RF Pulse', emoji: '🔴', desc: 'Low flip angle excitation' },
+                    { name: 'Spiral Prep', emoji: '🟡', desc: 'Prepare spiral k-space trajectory' },
+                    { name: 'Spiral In', emoji: '🟠', desc: 'Spiral trajectory inward from edge' },
+                    { name: 'Spiral Out', emoji: '🟢', desc: 'Spiral trajectory outward from center' },
+                    { name: 'Data Collection', emoji: '🔵', desc: 'Continuous data acquisition along spiral' },
+                    { name: 'Next Phase', emoji: '🟣', desc: 'Rotate spiral for next phase encoding' }
+                ],
+                description: '<strong>Spiral Sequence:</strong> Traces spiral trajectory through k-space. Efficient k-space coverage with continuous readout. Requires special reconstruction. May show slight blurring from motion sensitivity.',
+                rows: 256
+            },
+            trufi: {
+                name: 'Trufi',
+                tr: 3,
+                te: 1.5,
+                flipAngle: 5,
+                artifact: 'banding',
+                snrGain: 1.3,
+                events: [
+                    { name: 'Very Low FA', emoji: '🔴', desc: '5° flip angle for steady state' },
+                    { name: 'Gradient Refocus', emoji: '🟡', desc: 'Both gradients refocus magnetization' },
+                    { name: 'Steady State', emoji: '🟠', desc: 'Balanced SSFP steady state' },
+                    { name: 'High SNR', emoji: '🟢', desc: 'Multiple signals per TR coherently combined' },
+                    { name: 'T1/T2 Weighting', emoji: '🔵', desc: 'Mixed contrast from steady state' },
+                    { name: 'Minimal Time', emoji: '🟣', desc: 'Ultra-short TR for fast imaging' }
+                ],
+                description: '<strong>TruFi (True Fast Imaging):</strong> Balanced SSFP sequence with ultra-short TR. Very fast acquisition with T1/T2 weighting. High SNR but may show banding artifacts from B0 inhomogeneities.',
+                rows: 256
+            },
+            tse: {
+                name: 'Turbo Spin Echo',
+                tr: 3000,
+                te: 80,
+                flipAngle: 90,
+                artifact: 'none',
+                snrGain: 1.2,
+                events: [
+                    { name: '90° Pulse', emoji: '🔴', desc: 'Initial excitation pulse' },
+                    { name: '180° Train', emoji: '🟡', desc: 'Multiple 180° refocusing pulses' },
+                    { name: 'Echo Train', emoji: '🟠', desc: 'Acquire multiple echoes per TR' },
+                    { name: 'Phase Blips', emoji: '🟢', desc: 'Different phase encoding for each echo' },
+                    { name: 'T2 Decay', emoji: '🔵', desc: 'Signal decays through echo train' },
+                    { name: 'Next Excitation', emoji: '🟣', desc: 'Wait for T2 recovery' }
+                ],
+                description: '<strong>TSE (Turbo Spin Echo):</strong> Acquires multiple phase-encoded lines from single 90° excitation using 180° pulse train. Very T2 weighted with excellent tissue contrast. Clean images with minimal artifacts.',
+                rows: 256
+            },
+            ute: {
+                name: 'UTE',
+                tr: 10,
+                te: 0.1,
+                flipAngle: 8,
+                artifact: 'none',
+                snrGain: 0.85,
+                events: [
+                    { name: 'RF Pulse', emoji: '🔴', desc: 'Low flip angle excitation' },
+                    { name: 'No Gradient Prep', emoji: '🟡', desc: 'Minimal dephasing time' },
+                    { name: 'Ultra-Short TE', emoji: '🟠', desc: 'Start readout immediately (~0.1ms)' },
+                    { name: 'Early Read-Out', emoji: '🟢', desc: 'Capture before signal decay' },
+                    { name: 'Short T2 Tissue', emoji: '🔵', desc: 'Can image bone, water, ULP tissues' },
+                    { name: 'Fast Repetition', emoji: '🟣', desc: 'Short TR enables rapid averaging' }
+                ],
+                description: '<strong>UTE (Ultra-Short Echo Time):</strong> Minimizes dead time to achieve ultra-short TE (~0.1ms). Can image short T2 tissues like bone and tendons. Fast acquisition with reduced signal from long-T2 tissues.',
+                rows: 256
+            },
+            ute_ramp: {
+                name: 'UTE with Ramp Sampling',
+                tr: 10, 
+                te: 0.05, // Lowered due to earlier acquisition during ramp
+                flipAngle: 8,
+                artifact: 'reconstruction non-uniformity', // Requires resampling
+                snrGain: 0.90, // Improved efficiency
+                events: [
+                    { name: 'RF Pulse', emoji: '🔴', desc: 'Low flip angle excitation' },
+                    { name: 'Ramp Sampling', emoji: '🟡', desc: 'Start data collection during gradient ramp' },
+                    { name: 'Ultra-Short TE', emoji: '🟠', desc: 'Minimizes dead time to ~0.05ms' },
+                    { name: 'Non-uniform k-space', emoji: '🟢', desc: 'Requires resampling to Cartesian grid' },
+                    { name: 'Short T2 Tissue', emoji: '🔵', desc: 'Enhanced sensitivity to fast-decaying signal' },
+                    { name: 'High Efficiency', emoji: '🟣', desc: 'Increased duty cycle via ramp usage' }
+                ],
+                description: '<strong>UTE-RS (Ramp-Sampling UTE):</strong> Extends the readout window by acquiring data during the gradient ramp-up/down phases. This achieves a shorter effective TE and higher sampling density, though it requires specific reconstruction algorithms to account for the non-uniform k-space sampling spacing.',
+                rows: 256
+            }
+        };
+
+        // ============================================
+        // CANVAS & DISPLAY
+        // ============================================
+        let canvas = document.getElementById('imageCanvas');
+        let ctx = canvas.getContext('2d');
+        
+        let currentSequence = 'gradient_echo';
+        let animationRunning = false;
+        let currentRow = 0;
+        let currentEvent = 0;
+        let animationSpeed = 1;
+        let manualStepping = false;
+
+        // K-space and image data
+        let kspaceReal = new Float32Array(256 * 256);
+        let kspaceImag = new Float32Array(256 * 256);
+        let reconstructedImage = null;
+        let brainPhantom = null;
+
+        function initializeImages() {
+            brainPhantom = generateBrainPhantom(256, 256);
+            kspaceReal.fill(0);
+            kspaceImag.fill(0);
+            reconstructedImage = ctx.createImageData(256, 256);
+        }
+
+        function updateCanvasSize() {
+            const container = document.querySelector('.canvas-container');
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+            
+            const size = Math.min(containerWidth - 20, containerHeight - 20, 350);
+            canvas.width = 256;
+            canvas.height = 256;
+            
+            canvas.style.width = size + 'px';
+            canvas.style.height = size + 'px';
+        }
+
+        function simulateKspaceAcquisition(rowIndex, sequenceName) {
+            const seq = sequences[sequenceName];
+            const phantomCanvas = brainPhantom;
+            const phantomCtx = phantomCanvas.getContext('2d');
+            
+            // Get line from phantom image
+            const lineData = phantomCtx.getImageData(0, rowIndex, 256, 1).data;
+            
+            // Add some noise and sequence-specific artifacts
+            const noiseLevel = 0.1;
+            const artifactMagnitude = seq.artifact === 'none' ? 0 : 0.05;
+            
+            // Fill k-space with simulated data
+            for (let col = 0; col < 256; col++) {
+                const pixelValue = lineData[col * 4] / 255.0; // R channel
+                const noise = (Math.random() - 0.5) * noiseLevel;
+                const artifact = (Math.random() - 0.5) * artifactMagnitude;
+                
+                const realVal = pixelValue + noise + artifact;
+                const imagVal = noise * 0.5;
+                
+                // Phase encode the row with some variation
+                const phaseEncodeShift = (rowIndex - 128) / 256;
+                const phase = 2 * Math.PI * phaseEncodeShift * col / 256;
+                
+                const rotReal = realVal * Math.cos(phase) - imagVal * Math.sin(phase);
+                const rotImag = realVal * Math.sin(phase) + imagVal * Math.cos(phase);
+                
+                kspaceReal[rowIndex * 256 + col] = rotReal;
+                kspaceImag[rowIndex * 256 + col] = rotImag;
+            }
+        }
+
+        function reconstructImageFromKspace() {
+            const imageData = ctx.createImageData(256, 256);
+            const data = imageData.data;
+            
+            // Simple magnitude reconstruction from k-space
+            for (let i = 0; i < 256 * 256; i++) {
+                const mag = Math.sqrt(
+                    kspaceReal[i] * kspaceReal[i] + 
+                    kspaceImag[i] * kspaceImag[i]
+                );
+                
+                // Scale and map to pixel intensity
+                let intensity = Math.min(255, mag * 255 * 1.5);
+                
+                // Add sequence-specific characteristics
+                const seqArtifact = sequences[currentSequence].artifact;
+                if (seqArtifact === 'ghosting') {
+                    intensity *= 0.85; // Slight dimming
+                } else if (seqArtifact === 'blurring') {
+                    intensity *= 0.9;
+                } else if (seqArtifact === 'banding') {
+                    if (Math.sin((i % 256) * Math.PI / 32) > 0.8) {
+                        intensity *= 1.1;
+                    } else if (Math.sin((i % 256) * Math.PI / 32) < -0.8) {
+                        intensity *= 0.9;
+                    }
+                } else if (seqArtifact === 'streaking') {
+                    const angle = Math.atan2(Math.floor(i / 256) - 128, (i % 256) - 128);
+                    if (Math.abs(Math.sin(angle * 4)) > 0.7) {
+                        intensity *= 1.05;
+                    }
+                }
+                
+                intensity = Math.max(0, Math.min(255, intensity));
+                
+                data[i * 4] = intensity;
+                data[i * 4 + 1] = intensity;
+                data[i * 4 + 2] = intensity;
+                data[i * 4 + 3] = 255;
+            }
+            
+            return imageData;
+        }
+
+        function drawImage() {
+            reconstructedImage = reconstructImageFromKspace();
+            ctx.putImageData(reconstructedImage, 0, 0);
+        }
+
+        function calculateSNR(rowIndex) {
+            const totalRows = sequences[currentSequence].rows;
+            const snrGain = sequences[currentSequence].snrGain;
+            
+            // SNR improves with sqrt(number of lines acquired)
+            const acquisitionFraction = Math.min(1.0, rowIndex / totalRows);
+            const snrDb = 10 * Math.log10(acquisitionFraction * acquisitionFraction) + 10 * Math.log10(snrGain);
+            
+            return Math.max(0, snrDb);
+        }
+
+        function updateDisplay() {
+            const seq = sequences[currentSequence];
+            const totalEvents = seq.events.length;
+            const totalRows = seq.rows;
+
+            const percentage = Math.round((currentRow / totalRows) * 100);
+            const timeMs = currentRow * seq.tr;
+            const timeSec = (timeMs / 1000).toFixed(2);
+            const snr = calculateSNR(currentRow);
+
+            document.getElementById('rowCounter').textContent = `${currentRow}/${totalRows}`;
+            document.getElementById('progressPercent').textContent = `${percentage}%`;
+            document.getElementById('timeCounter').textContent = `${timeSec}s`;
+            document.getElementById('snrCounter').textContent = `${snr.toFixed(1)} dB`;
+            document.getElementById('timelineProgress').style.width = `${percentage}%`;
+            document.getElementById('timelineProgress').textContent = `${percentage}%`;
+
+            updatePulseSequence();
+            drawImage();
+            updateDashboardMirrors();
+        }
+
+        function updatePulseSequence() {
+            const seq = sequences[currentSequence];
+            document.querySelectorAll('.pulse-line').forEach(el => {
+                el.classList.remove('active');
+            });
+
+            if (currentRow > 0 && currentRow < seq.rows) {
+                const eventEls = document.querySelectorAll('[data-event-idx]');
+                if (eventEls[currentEvent]) {
+                    eventEls[currentEvent].classList.add('active');
+                }
+            }
+
+            const event = seq.events[currentEvent];
+            const desc = event ? `${event.emoji} ${event.name}: ${event.desc}` : 'Ready';
+            document.getElementById('eventDescription').textContent = desc;
+            document.getElementById('stepInfo').textContent = desc;
+        }
+
+        function changeSequence() {
+            currentSequence = document.getElementById('sequenceSelect').value;
+            reset();
+            updateSequenceInfo();
+        }
+
+        function updateSequenceInfo() {
+            const seq = sequences[currentSequence];
+            const infoEl = document.getElementById('sequenceInfo');
+            
+            const pulseqNames = {
+                'gradient_echo': 'writeGradientEcho',
+                'gradient_echo_3d': 'writeGradientEcho3D',
+                'epi': 'writeEpi',
+                'epi_ramp': 'writeEpiRS',
+                'se_epi': 'writeEpiSpinEcho',
+                'haste': 'writeHASTE',
+                'radial': 'writeRadialGradientEcho',
+                'selective_rf': 'writeSelectiveRf',
+                'spiral': 'writeSpiral',
+                'trufi': 'writeTrufi',
+                'tse': 'writeTSE',
+                'ute': 'writeUTE',
+                'ute_ramp': 'writeUTERS'
+            };
+            
+            const pulseqName = pulseqNames[currentSequence];
+            
+            infoEl.innerHTML = `
+                <strong>${seq.name}</strong><br>
+                TR: ${seq.tr}ms | TE: ${seq.te}ms | Flip Angle: ${seq.flipAngle}°<br>
+                Possible Artifact: ${seq.artifact.toUpperCase()}<br>
+                <a href="https://pulseq.github.io/${pulseqName}.html" class="pulseq-link" target="_blank">
+                    📖 View Pulseq Documentation
+                </a>
+            `;
+
+            const descEl = document.getElementById('sequenceDescription');
+            descEl.innerHTML = `<p>${seq.description}</p>`;
+
+            const pulseDiagram = document.getElementById('pulseDiagram');
+            pulseDiagram.innerHTML = seq.events.map((evt, idx) => 
+                `<div class="pulse-line" data-event-idx="${idx}">${evt.emoji} <strong>${evt.name}</strong><br><span style="color:#9db4ff; font-size:0.9em; margin-left:20px;">${evt.desc}</span></div>`
+            ).join('');
+        }
+
+        function animate() {
+            if (!animationRunning) return;
+
+            const seq = sequences[currentSequence];
+            if (currentRow < seq.rows) {
+                simulateKspaceAcquisition(currentRow, currentSequence);
+                
+                currentEvent = (currentEvent + 1) % seq.events.length;
+                if (currentEvent === 0) {
+                    currentRow++;
+                }
+                
+                updateDisplay();
+                setTimeout(animate, (seq.tr / seq.events.length) / animationSpeed);
+            } else {
+                animationRunning = false;
+                document.getElementById('playBtn').textContent = '▶ PLAY';
+            }
+        }
+
+        window.togglePlay = function() {
+            animationRunning = !animationRunning;
+            manualStepping = false;
+            document.getElementById('playBtn').textContent = animationRunning ? '⏸ PAUSE' : '▶ PLAY';
+            
+            if (animationRunning) {
+                animate();
+            }
+        };
+
+        window.nextStep = function() {
+            if (animationRunning) return;
+            
+            const seq = sequences[currentSequence];
+            manualStepping = true;
+            
+            if (currentRow < seq.rows) {
+                currentEvent = (currentEvent + 1) % seq.events.length;
+                if (currentEvent === 0) {
+                    simulateKspaceAcquisition(currentRow, currentSequence);
+                    currentRow++;
+                }
+                updateDisplay();
+            }
+        };
+
+        window.previousStep = function() {
+            if (animationRunning) return;
+            
+            const seq = sequences[currentSequence];
+            manualStepping = true;
+            
+            if (currentEvent === 0) {
+                if (currentRow > 0) {
+                    currentRow--;
+                    currentEvent = seq.events.length - 1;
+                }
+            } else {
+                currentEvent--;
+            }
+            
+            updateDisplay();
+        };
+
+        window.reset = function() {
+            animationRunning = false;
+            currentRow = 0;
+            currentEvent = 0;
+            initializeImages();
+            document.getElementById('playBtn').textContent = '▶ PLAY';
+            updateDisplay();
+        };
+
+        window.setSpeed = function(speed) {
+            animationSpeed = speed;
+            
+            // Update button states
+            document.querySelectorAll('.speed-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        };
+
+        window.downloadVideo = function() {
+            const link = document.createElement('a');
+            link.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(
+                'To create a downloadable video:\n\n' +
+                '1. Click the PLAY button to start the animation\n' +
+                '2. Use your browser\'s screen recording tool (F12 > DevTools > More tools > Recorder)\n' +
+                '3. Or use external tools like OBS Studio, ScreenFlow, or Quicktime\n\n' +
+                'This animation exports as a web visualization that can be screen-captured into video format.'
+            );
+            link.download = 'mri_sequence_instructions.txt';
+            link.click();
+        };
+
+        
+        function updateDashboardMirrors() {
+            const seq = sequences[currentSequence];
+
+            const progress = document.getElementById('progressPercent').textContent;
+            const time = document.getElementById('timeCounter').textContent;
+            const eventText = document.getElementById('eventDescription').textContent;
+
+            const seqLabel = document.getElementById('activeSequenceLabel');
+            const progressMirror = document.getElementById('progressMirror');
+            const timeMirror = document.getElementById('timeMirror');
+            const eventMirror = document.getElementById('eventMirror');
+
+            if (seqLabel) seqLabel.textContent = seq.name;
+            if (progressMirror) progressMirror.textContent = progress;
+            if (timeMirror) timeMirror.textContent = time;
+            if (eventMirror) eventMirror.textContent = eventText.substring(0, 24);
+        }
+
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        window.addEventListener('resize', updateCanvasSize);
+        
+        updateCanvasSize();
+        initializeImages();
+        updateSequenceInfo();
+        reset();
+    </script>
+</body>
+</html>
